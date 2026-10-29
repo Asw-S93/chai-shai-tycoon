@@ -1,0 +1,23 @@
+appId: com.chaishai.tycoon
+---
+- launchApp
+- assertVisible: "Chai-Shai Tycoon"
+- tapOn:
+    id: "home-play-btn"
+- tapOn:
+    id: "tutorial-skip-btn"
+    optional: true
+- tapOn:
+    id: "recipe-btn-cutting"
+- tapOn:
+    id: "station-hitbox-station_1"
+- tapOn:
+    id: "hud-pause-btn"
+- assertVisible: "Stall Paused ☕"
+- tapOn:
+    id: "pause-shop-btn"
+- assertVisible: "Tapri Upgrade Bazaar"
+- tapOn:
+    id: "shop-back-btn"
+- tapOn:
+    id: "pause-resume-btn"
