@@ -4,6 +4,7 @@ import {
   AppState,
   AppStateStatus,
   BackHandler,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -14,7 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { INGREDIENT_METADATA, RECIPES_CATALOG } from '../../content/recipes';
 import { ALL_INGREDIENT_IDS, IngredientId } from '../../domain/value-objects';
-import { RECIPE_VISUAL_MANIFEST } from '../../infrastructure/assets';
+import {
+  RECIPE_VISUAL_MANIFEST,
+  SPRITE_ASSETS,
+} from '../../infrastructure/assets';
 import { TutorialOverlay } from '../components/TutorialOverlay';
 import { ChaiStallScene } from '../game/ChaiStallScene';
 import { useGameStore } from '../state/useGameStore';
@@ -157,7 +161,7 @@ export const GameplayScreen: React.FC = () => {
         contentContainerStyle={styles.mainContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Interactive Skia Chai Stall Scene */}
+        {/* Interactive Skia & Stop-Motion Chai Stall Scene */}
         <ChaiStallScene
           orders={snapshot.activeOrders}
           stations={snapshot.stations}
@@ -210,6 +214,11 @@ export const GameplayScreen: React.FC = () => {
                     isLow && styles.ingredientChipLow,
                   ]}
                 >
+                  <Image
+                    source={SPRITE_ASSETS.ingredients[ingId]}
+                    style={styles.ingredientIcon}
+                    resizeMode="contain"
+                  />
                   <Text style={styles.ingredientName}>{meta.shortLabel}</Text>
                   <Text
                     style={[
@@ -227,7 +236,7 @@ export const GameplayScreen: React.FC = () => {
 
         {/* Bottom Recipe Selection Tray */}
         <View style={styles.recipeTrayCard}>
-          <Text style={styles.sectionTitle}>
+          <Text style={styles.sectionTitleLight}>
             Select Chai Recipe → Then Tap Idle Kettle
           </Text>
           <View style={styles.recipeGrid}>
@@ -259,22 +268,30 @@ export const GameplayScreen: React.FC = () => {
                     !isUnlocked && styles.recipeButtonLocked,
                   ]}
                 >
-                  <View style={styles.recipeTopRow}>
-                    <Text style={styles.recipeGlyph}>{vis.badgeGlyph}</Text>
-                    <Text style={styles.recipeCoins}>+{rec.baseCoins}🪙</Text>
+                  <View style={styles.recipeCardInner}>
+                    <Image
+                      source={vis.spriteSource}
+                      style={styles.recipeSpriteIcon}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.recipeInfoCol}>
+                      <View style={styles.recipeTopRow}>
+                        <Text style={styles.recipeTitle} numberOfLines={1}>
+                          {rec.name}
+                        </Text>
+                        <Text style={styles.recipeCoins}>+{rec.baseCoins}🪙</Text>
+                      </View>
+                      {isUnlocked ? (
+                        <Text style={styles.recipeSub} numberOfLines={1}>
+                          {rec.baseBrewTimeMs / 1000}s • {ingSummary}
+                        </Text>
+                      ) : (
+                        <Text style={styles.recipeLockedLabel}>
+                          🔒 Unlocks Lv.{rec.unlockLevel}
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  <Text style={styles.recipeTitle} numberOfLines={1}>
-                    {rec.name}
-                  </Text>
-                  {isUnlocked ? (
-                    <Text style={styles.recipeSub} numberOfLines={1}>
-                      {rec.baseBrewTimeMs / 1000}s • {ingSummary}
-                    </Text>
-                  ) : (
-                    <Text style={styles.recipeLockedLabel}>
-                      🔒 Unlocks Lv.{rec.unlockLevel}
-                    </Text>
-                  )}
                 </Pressable>
               );
             })}
@@ -447,6 +464,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 12,
   },
+  sectionTitleLight: {
+    color: COLORS.cream,
+    fontWeight: '800',
+    fontSize: 12,
+  },
   restockAllBtn: {
     backgroundColor: COLORS.cardamom,
     paddingHorizontal: SPACING.sm,
@@ -465,7 +487,7 @@ const styles = StyleSheet.create({
   },
   ingredientChip: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 54,
     backgroundColor: COLORS.milkWhite,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
@@ -478,13 +500,18 @@ const styles = StyleSheet.create({
     borderColor: COLORS.danger,
     backgroundColor: '#FFEAEA',
   },
+  ingredientIcon: {
+    width: 22,
+    height: 22,
+    marginBottom: 1,
+  },
   ingredientName: {
     fontSize: 10,
     fontWeight: '700',
     color: COLORS.teaBrownMid,
   },
   ingredientCount: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: COLORS.teaBrown,
   },
@@ -505,13 +532,13 @@ const styles = StyleSheet.create({
   },
   recipeButton: {
     width: '48.5%',
-    minHeight: Math.max(MIN_TOUCH_TARGET_DP, 58),
+    minHeight: Math.max(MIN_TOUCH_TARGET_DP, 60),
     backgroundColor: COLORS.cream,
     borderRadius: RADIUS.sm,
     borderWidth: 2,
     borderColor: COLORS.teaBrownMid,
-    padding: 7,
-    justifyContent: 'space-between',
+    padding: 6,
+    justifyContent: 'center',
   },
   recipeButtonSelected: {
     borderColor: COLORS.saffron,
@@ -522,33 +549,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#D7C8B8',
     opacity: 0.75,
   },
+  recipeCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recipeSpriteIcon: {
+    width: 36,
+    height: 36,
+  },
+  recipeInfoCol: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
   recipeTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  recipeGlyph: {
-    fontSize: 15,
-  },
   recipeCoins: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
     color: COLORS.cardamomDark,
   },
   recipeTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: COLORS.teaBrown,
+    flex: 1,
+    marginRight: 2,
   },
   recipeSub: {
     fontSize: 10,
     fontWeight: '700',
     color: COLORS.mutedText,
+    marginTop: 2,
   },
   recipeLockedLabel: {
     fontSize: 10,
     fontWeight: '800',
     color: COLORS.terracottaDark,
+    marginTop: 2,
   },
   modalBackdrop: {
     flex: 1,

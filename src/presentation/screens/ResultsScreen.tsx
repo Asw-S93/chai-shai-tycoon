@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SPRITE_ASSETS } from '../../infrastructure/assets';
+import { StopMotionSprite } from '../game/StopMotionSprite';
 import { useGameStore } from '../state/useGameStore';
 import { COLORS, MIN_TOUCH_TARGET_DP, RADIUS, SPACING } from '../theme';
 
@@ -15,6 +17,17 @@ export const ResultsScreen: React.FC = () => {
   const router = useRouter();
   const snapshot = useGameStore((s) => s.snapshot);
   const startSession = useGameStore((s) => s.startSession);
+  const [animMs, setAnimMs] = useState(0);
+
+  useEffect(() => {
+    if (snapshot.settings.lowMotionEnabled) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setAnimMs((prev) => (prev + 200) % 60000);
+    }, 200);
+    return () => clearInterval(timer);
+  }, [snapshot.settings.lowMotionEnabled]);
 
   const summary = snapshot.lastSessionSummary ?? {
     sessionId: 'summary',
@@ -33,6 +46,36 @@ export const ResultsScreen: React.FC = () => {
         <View style={styles.card}>
           <Text style={styles.kicker}>SHIFT SCORECARD</Text>
           <Text style={styles.title}>Tapri Shift Complete! ☕</Text>
+
+          {/* Celebratory Stop-Motion Ustad Chaiwala High-Pour & Bua Ji */}
+          <View style={styles.celebrationRow}>
+            <StopMotionSprite
+              frames={SPRITE_ASSETS.customersFemale.regular}
+              width={66}
+              height={66}
+              elapsedMs={animMs}
+              stepIntervalMs={240}
+              lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+            />
+            <StopMotionSprite
+              frames={SPRITE_ASSETS.chaiwala}
+              width={82}
+              height={82}
+              elapsedMs={animMs}
+              phaseOffsetMs={100}
+              stepIntervalMs={200}
+              lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+            />
+            <StopMotionSprite
+              frames={SPRITE_ASSETS.customersFemale.student}
+              width={66}
+              height={66}
+              elapsedMs={animMs}
+              phaseOffsetMs={160}
+              stepIntervalMs={240}
+              lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+            />
+          </View>
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
@@ -144,7 +187,20 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 24,
     marginTop: 4,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  celebrationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.creamWarm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.saffron,
   },
   statsGrid: {
     width: '100%',

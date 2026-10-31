@@ -23,13 +23,20 @@
 - Implemented `SqliteSaveRepository` (`src/infrastructure/persistence/SqliteSaveRepository.ts`) with versioned migrations, transactional writes, and Zod corruption recovery.
 - Built `UpgradeShopScreen.tsx` with category tabs (`All`, `Equipment`, `Staff`, `Decor`).
 
-### M4: UX, Art Polish, Rush Hour & Tutorial — COMPLETED
+### M4: UX, Art Polish, Stop-Motion Animations, Rush Hour & Tutorial — COMPLETED
 - Added `90s` Rush Hour wave (`30s` duration, `0.5x` spawn interval down to `2.5s` floor, HUD banner, sound & heavy haptic alert).
-- Built `HomeScreen.tsx` with Skia hero illustration, `TutorialOverlay.tsx` (skippable & replayable), `ResultsScreen.tsx` shift scorecard, and `SettingsScreen.tsx` (sound, haptics, low-motion toggles).
+- Generated and integrated 23 custom illustrated 2D & claymation-style stop-motion PNG sprites (`assets/sprites/`):
+  - 2-frame stop-motion character puppets (`cust_office_1/2.png`, `cust_student_1/2.png`, `cust_regular_1/2.png`, `chhotu_1/2.png`)
+  - 4 brass kettle states (`kettle_idle.png`, `kettle_brewing_1/2.png`, `kettle_ready.png`)
+  - 4 chai recipe cup icons (`chai_cutting.png`, `chai_adrak.png`, `chai_elaichi.png`, `chai_masala.png`)
+  - 6 ingredient pantry icons (`ing_tea.png`, `ing_milk.png`, `ing_sugar.png`, `ing_ginger.png`, `ing_cardamom.png`, `ing_spices.png`)
+  - Illustrated Indian roadside bazaar backdrop (`stall_backdrop.png`)
+- Built `StopMotionSprite.tsx` (`computeStopMotionFrameState`) with discrete stepped frame cadence (`4–8 FPS`), quantized stop-motion tilt/squash-and-stretch, impatient jitter acceleration, and full `lowMotionEnabled` accessibility support.
+- Built `HomeScreen.tsx` with animated stop-motion hero stage, `TutorialOverlay.tsx` (skippable & replayable), `ResultsScreen.tsx` shift scorecard, and `SettingsScreen.tsx` (sound, haptics, low-motion toggles).
 - Added automatic pause on app background (`AppState`) and Android hardware back press (`BackHandler`).
 
 ### M5: QA and Android Packaging — COMPLETED
-- All 15 automated unit, integration, and UI/E2E tests pass (`npm test`).
+- All 16 automated unit, integration, and UI/E2E tests pass (`npm test`).
 - Zero TypeScript errors (`npm run typecheck`) and zero ESLint warnings/errors (`npm run lint`).
 - `npx expo-doctor` passes `20/20` checks.
-- Documented architecture, game design, asset register, and test/build report in `docs/`.
+- Built standalone release APK and installed wirelessly via ADB onto connected Android device.

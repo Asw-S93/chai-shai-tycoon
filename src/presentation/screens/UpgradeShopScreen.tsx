@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UpgradeCategory } from '../../domain/value-objects';
+import { UPGRADE_VISUAL_MANIFEST } from '../../infrastructure/assets';
 import { useGameStore } from '../state/useGameStore';
 import { COLORS, MIN_TOUCH_TARGET_DP, RADIUS, SPACING } from '../theme';
 
@@ -78,13 +80,25 @@ export const UpgradeShopScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         {filteredUpgrades.map((upg) => {
+          const propIcon = UPGRADE_VISUAL_MANIFEST[upg.id];
           return (
             <View key={upg.id} style={styles.upgradeCard}>
+              {/* Illustrated Upgrade Prop / Staff Sprite */}
+              <View style={styles.propIconFrame}>
+                <Image
+                  source={propIcon}
+                  style={styles.propIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+
               <View style={styles.cardInfo}>
                 <View style={styles.titleRow}>
-                  <Text style={styles.upgradeName}>{upg.name}</Text>
+                  <Text style={styles.upgradeName} numberOfLines={1}>
+                    {upg.name}
+                  </Text>
                   <Text style={styles.levelBadge}>
-                    Lv. {upg.currentLevel} / {upg.maxLevel}
+                    Lv. {upg.currentLevel}/{upg.maxLevel}
                   </Text>
                 </View>
                 <Text style={styles.upgradeDesc}>{upg.description}</Text>
@@ -217,8 +231,22 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     borderWidth: 2,
     borderColor: COLORS.teaBrownMid,
-    padding: SPACING.md,
-    gap: SPACING.md,
+    padding: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  propIconFrame: {
+    width: 60,
+    height: 60,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.creamWarm,
+    borderWidth: 1.5,
+    borderColor: COLORS.saffron,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  propIconImage: {
+    width: 50,
+    height: 50,
   },
   cardInfo: {
     flex: 1,
@@ -227,23 +255,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 3,
+    gap: 4,
   },
   upgradeName: {
     color: COLORS.teaBrown,
     fontWeight: '900',
-    fontSize: 15,
+    fontSize: 14,
+    flex: 1,
   },
   levelBadge: {
     color: COLORS.cardamomDark,
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 11,
   },
   upgradeDesc: {
     color: COLORS.mutedText,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 8,
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 6,
   },
   dotsRow: {
     flexDirection: 'row',
@@ -259,13 +289,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.saffron,
   },
   buyButton: {
-    minWidth: 96,
+    minWidth: 88,
     minHeight: Math.max(MIN_TOUCH_TARGET_DP, 54),
     backgroundColor: COLORS.cardamom,
     borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
   },
   buyButtonDisabled: {
     backgroundColor: '#B5A89E',

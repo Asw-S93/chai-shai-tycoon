@@ -2,11 +2,11 @@ import {
   Canvas,
   Circle,
   Rect,
-  RoundedRect,
 } from '@shopify/react-native-skia';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +14,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SPRITE_ASSETS } from '../../infrastructure/assets';
+import { StopMotionSprite } from '../game/StopMotionSprite';
+import { StreetTrafficBanner } from '../game/StreetTrafficBanner';
 import { useGameStore } from '../state/useGameStore';
 import { COLORS, MIN_TOUCH_TARGET_DP, RADIUS, SPACING } from '../theme';
 
@@ -23,10 +26,21 @@ export const HomeScreen: React.FC = () => {
   const initializeApp = useGameStore((s) => s.initializeApp);
   const startSession = useGameStore((s) => s.startSession);
   const snapshot = useGameStore((s) => s.snapshot);
+  const [heroElapsedMs, setHeroElapsedMs] = useState(0);
 
   useEffect(() => {
     void initializeApp();
   }, [initializeApp]);
+
+  useEffect(() => {
+    if (snapshot.settings.lowMotionEnabled) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setHeroElapsedMs((prev) => (prev + 180) % 60000);
+    }, 180);
+    return () => clearInterval(timer);
+  }, [snapshot.settings.lowMotionEnabled]);
 
   const handlePlayShift = () => {
     startSession();
@@ -46,52 +60,95 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.subtitleText}>{snapshot.levelTitle}</Text>
         </View>
 
-        {/* Illustrated Skia Chai Stall Hero Card */}
+        {/* Illustrated Chai Stall Hero Card with Dynamic Street Art Traffic & Stop-Motion Puppets */}
         <View style={styles.heroIllustrationWrap}>
-          <Canvas style={styles.heroCanvas}>
-            <Rect x={0} y={0} width={320} height={160} color="#FDE7C2" />
-            {/* Awning */}
-            <Rect x={0} y={0} width={64} height={26} color={COLORS.terracotta} />
-            <Rect x={64} y={0} width={64} height={26} color={COLORS.cream} />
-            <Rect x={128} y={0} width={64} height={26} color={COLORS.terracotta} />
-            <Rect x={192} y={0} width={64} height={26} color={COLORS.cream} />
-            <Rect x={256} y={0} width={64} height={26} color={COLORS.terracotta} />
-
-            {/* Sun / Halo */}
-            <Circle cx={260} cy={62} r={22} color={COLORS.saffronLight} />
-
-            {/* Counter */}
-            <Rect x={0} y={108} width={320} height={52} color={COLORS.teaBrown} />
-            <RoundedRect
-              x={110}
-              y={64}
-              width={64}
-              height={46}
-              r={12}
-              color="#C87D55"
+          <StreetTrafficBanner
+            width={320}
+            height={68}
+            elapsedMs={heroElapsedMs}
+            isRushHour={false}
+            lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+            testID="home-street-banner"
+          />
+          <View style={styles.heroSceneBox}>
+            <Image
+              source={SPRITE_ASSETS.stallBackdrop}
+              style={styles.heroBackdrop}
+              resizeMode="cover"
             />
-            {/* Steam */}
-            <Circle cx={132} cy={48} r={6} color="rgba(255,255,255,0.7)" />
-            <Circle cx={150} cy={40} r={8} color="rgba(255,255,255,0.55)" />
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+              {/* Awning */}
+              <Rect x={0} y={0} width={64} height={24} color={COLORS.terracotta} />
+              <Rect x={64} y={0} width={64} height={24} color={COLORS.cream} />
+              <Rect x={128} y={0} width={64} height={24} color={COLORS.terracotta} />
+              <Rect x={192} y={0} width={64} height={24} color={COLORS.cream} />
+              <Rect x={256} y={0} width={64} height={24} color={COLORS.terracotta} />
+              {/* Counter */}
+              <Rect
+                x={0}
+                y={114}
+                width={320}
+                height={54}
+                color="rgba(59, 31, 17, 0.88)"
+              />
+              {/* Steam */}
+              <Circle cx={154} cy={46} r={5} color="rgba(255,255,255,0.75)" />
+              <Circle cx={168} cy={36} r={7} color="rgba(255,255,255,0.55)" />
+            </Canvas>
 
-            {/* Cutting Chai Glasses */}
-            <RoundedRect
-              x={64}
-              y={84}
-              width={20}
-              height={24}
-              r={4}
-              color={COLORS.saffron}
-            />
-            <RoundedRect
-              x={205}
-              y={84}
-              width={20}
-              height={24}
-              r={4}
-              color={COLORS.cardamom}
-            />
-          </Canvas>
+            {/* Stop-Motion Hero Stage: Priya (Female Office Worker), Ustad Chaiwala High-Pour, Simmering Kettle & Chhotu */}
+            <View style={styles.heroStageRow} pointerEvents="none">
+              <StopMotionSprite
+                frames={SPRITE_ASSETS.customersFemale.office_worker}
+                width={68}
+                height={68}
+                elapsedMs={heroElapsedMs}
+                stepIntervalMs={240}
+                lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+              />
+              <StopMotionSprite
+                frames={SPRITE_ASSETS.chaiwala}
+                width={76}
+                height={76}
+                elapsedMs={heroElapsedMs}
+                phaseOffsetMs={90}
+                stepIntervalMs={220}
+                lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+              />
+              <View style={styles.heroCenterPropGroup}>
+                <StopMotionSprite
+                  frames={SPRITE_ASSETS.kettles.brewing}
+                  width={68}
+                  height={68}
+                  elapsedMs={heroElapsedMs}
+                  stepIntervalMs={160}
+                  lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+                />
+                <View style={styles.heroCupPair}>
+                  <Image
+                    source={SPRITE_ASSETS.recipes.cutting}
+                    style={styles.heroCupIcon}
+                    resizeMode="contain"
+                  />
+                  <Image
+                    source={SPRITE_ASSETS.recipes.masala}
+                    style={styles.heroCupIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+              </View>
+              <StopMotionSprite
+                frames={SPRITE_ASSETS.chhotu}
+                width={66}
+                height={66}
+                elapsedMs={heroElapsedMs}
+                phaseOffsetMs={140}
+                stepIntervalMs={220}
+                lowMotionEnabled={snapshot.settings.lowMotionEnabled}
+              />
+            </View>
+          </View>
+
           <View style={styles.heroStatsOverlay}>
             <View style={styles.statPill}>
               <Text style={styles.statLabel}>COINS</Text>
@@ -216,9 +273,37 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.creamWarm,
     marginBottom: SPACING.xl,
   },
-  heroCanvas: {
+  heroSceneBox: {
     width: 320,
-    height: 160,
+    height: 168,
+    justifyContent: 'flex-end',
+  },
+  heroBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 320,
+    height: 168,
+    opacity: 0.92,
+  },
+  heroStageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    paddingBottom: 10,
+  },
+  heroCenterPropGroup: {
+    alignItems: 'center',
+  },
+  heroCupPair: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: -10,
+  },
+  heroCupIcon: {
+    width: 26,
+    height: 26,
   },
   heroStatsOverlay: {
     flexDirection: 'row',
