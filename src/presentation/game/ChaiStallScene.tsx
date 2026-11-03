@@ -65,10 +65,22 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
   onTapStation,
   onDiscardReadyCup,
 }) => {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const canvasWidth = Math.max(320, Math.min(windowWidth, 600));
-  const streetBannerHeight = 84;
-  const stallHeight = 328;
+
+  // The background section (street diorama + stall scene) covers 40% of the screen height
+  const totalBackgroundHeight = Math.max(
+    280,
+    Math.min(420, Math.round(windowHeight * 0.40)),
+  );
+  const streetBannerHeight = Math.round(totalBackgroundHeight * 0.28);
+  const stallHeight = totalBackgroundHeight - streetBannerHeight;
+
+  // Relative coordinates inside the stall
+  const shelfY = Math.round(stallHeight * 0.48);
+  const counterY = shelfY + 12;
+  const counterHeight = stallHeight - counterY;
+  const burnerCy = Math.round(stallHeight * 0.74);
 
   // Pre-build canopy awning stripes
   const stripeCount = 7;
@@ -83,22 +95,24 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
   const garlandPath = useMemo(() => {
     const segments = 6;
     const segW = canvasWidth / segments;
-    let d = `M 0 32`;
+    const gY = Math.max(26, Math.round(stallHeight * 0.10));
+    const dipY = gY + 16;
+    let d = `M 0 ${gY}`;
     for (let i = 0; i < segments; i++) {
       const startX = i * segW;
-      d += ` Q ${Math.round(startX + segW / 2)} 50 ${Math.round(startX + segW)} 32`;
+      d += ` Q ${Math.round(startX + segW / 2)} ${dipY} ${Math.round(startX + segW)} ${gY}`;
     }
     return Skia.Path.MakeFromSVGString(d) ?? d;
-  }, [canvasWidth]);
+  }, [canvasWidth, stallHeight]);
 
   return (
     <View
       style={[
         styles.container,
-        { width: canvasWidth, height: streetBannerHeight + stallHeight },
+        { width: canvasWidth, height: totalBackgroundHeight },
       ]}
     >
-      {/* Upper Section: Dynamic Street-Art Wall & Moving Stop-Motion Traffic (Bus, Auto-Rickshaw, Scooter, Cycle Rickshaw) */}
+      {/* Upper Section: Dynamic Street-Art Wall & Moving Traffic (Bus, Auto-Rickshaw, Scooter) */}
       <StreetTrafficBanner
         width={canvasWidth}
         height={streetBannerHeight}
@@ -141,11 +155,17 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
               x={idx * stripeWidth}
               y={0}
               width={stripeWidth + 1}
-              height={30}
+              height={Math.round(stallHeight * 0.09)}
               color={idx % 2 === 0 ? COLORS.terracotta : COLORS.cream}
             />
           ))}
-          <Rect x={0} y={28} width={canvasWidth} height={4} color={COLORS.teaBrown} />
+          <Rect
+            x={0}
+            y={Math.round(stallHeight * 0.09) - 2}
+            width={canvasWidth}
+            height={4}
+            color={COLORS.teaBrown}
+          />
 
           {/* Rising Shop Decor: Marigold Garland & Lanterns when decorLevel > 0 */}
           {decorLevel > 0 && (
@@ -156,16 +176,31 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
                 style="stroke"
                 strokeWidth={4}
               />
-              <Circle cx={canvasWidth * 0.25} cy={43} r={7} color={COLORS.gold} />
-              <Circle cx={canvasWidth * 0.5} cy={43} r={7} color={COLORS.terracotta} />
-              <Circle cx={canvasWidth * 0.75} cy={43} r={7} color={COLORS.gold} />
+              <Circle
+                cx={canvasWidth * 0.25}
+                cy={Math.round(stallHeight * 0.13)}
+                r={6}
+                color={COLORS.gold}
+              />
+              <Circle
+                cx={canvasWidth * 0.5}
+                cy={Math.round(stallHeight * 0.13)}
+                r={6}
+                color={COLORS.terracotta}
+              />
+              <Circle
+                cx={canvasWidth * 0.75}
+                cy={Math.round(stallHeight * 0.13)}
+                r={6}
+                color={COLORS.gold}
+              />
             </Group>
           )}
 
           {/* Customer Queue Counter Shelf */}
           <Rect
             x={0}
-            y={162}
+            y={shelfY}
             width={canvasWidth}
             height={12}
             color={COLORS.teaBrownMid}
@@ -174,17 +209,17 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
           {/* Lower Wooden Tapri Brewing Counter */}
           <Rect
             x={0}
-            y={174}
+            y={counterY}
             width={canvasWidth}
-            height={154}
+            height={counterHeight}
             color="rgba(59, 31, 17, 0.88)"
           />
           <RoundedRect
-            x={10}
-            y={180}
-            width={canvasWidth - 20}
-            height={140}
-            r={14}
+            x={8}
+            y={counterY + 4}
+            width={canvasWidth - 16}
+            height={counterHeight - 8}
+            r={12}
             color="rgba(78, 42, 23, 0.9)"
           />
 
@@ -192,7 +227,7 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
           {stations.map((st, idx) => {
             const cx =
               idx === 0 ? canvasWidth * 0.27 : canvasWidth * 0.73;
-            const cy = 248;
+            const cy = burnerCy;
             const isBrewing = st.state === 'Brewing';
             const isReady = st.state === 'Ready';
             const isSelectedReady = selectedReadyStationId === st.id && isReady;
@@ -204,7 +239,7 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
                   <Circle
                     cx={cx}
                     cy={cy}
-                    r={58}
+                    r={54}
                     color="rgba(244, 162, 54, 0.35)"
                   />
                 )}
@@ -213,8 +248,8 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
                 {isBrewing && (
                   <Circle
                     cx={cx}
-                    cy={cy + 18}
-                    r={38 + Math.sin(animPhase * 2) * 2.5}
+                    cy={cy + 16}
+                    r={34 + Math.sin(animPhase * 2) * 2.5}
                     color="rgba(244, 162, 54, 0.55)"
                   />
                 )}
@@ -224,13 +259,13 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
                   <Group>
                     <Circle
                       cx={cx - 12 + Math.sin(animPhase) * 4}
-                      cy={cy - 38 - ((sessionElapsedMs % 1000) / 1000) * 16}
+                      cy={cy - 34 - ((sessionElapsedMs % 1000) / 1000) * 16}
                       r={5}
                       color="rgba(255, 248, 231, 0.75)"
                     />
                     <Circle
                       cx={cx + 12 - Math.sin(animPhase) * 4}
-                      cy={cy - 46 - (((sessionElapsedMs + 500) % 1000) / 1000) * 16}
+                      cy={cy - 42 - (((sessionElapsedMs + 500) % 1000) / 1000) * 16}
                       r={6}
                       color="rgba(255, 248, 231, 0.58)"
                     />
@@ -246,7 +281,7 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
           {/* Spiced Copper Tins on Left Counter Ledge */}
           <Image
             source={SPRITE_ASSETS.props.copperTins}
-            style={styles.copperTinsProp}
+            style={[styles.copperTinsProp, { top: shelfY - 24 }]}
             resizeMode="contain"
           />
 
@@ -277,14 +312,14 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
         {/* Layer 1.5: Stop-Motion Chhotu Helper behind Counter when helperLevel > 0 */}
         {helperLevel > 0 && (
           <View
-            style={styles.chhotuWrap}
+            style={[styles.chhotuWrap, { top: shelfY - 44 }]}
             pointerEvents="none"
             testID="chhotu-helper-sprite"
           >
             <StopMotionSprite
               frames={SPRITE_ASSETS.chhotu}
-              width={54}
-              height={54}
+              width={50}
+              height={50}
               elapsedMs={sessionElapsedMs}
               stepIntervalMs={isRushHour ? 150 : 240}
               lowMotionEnabled={lowMotionEnabled}
@@ -612,10 +647,10 @@ const styles = StyleSheet.create({
   },
   customerQueueRow: {
     position: 'absolute',
-    top: 32,
-    left: 6,
-    right: 6,
-    height: 130,
+    top: 26,
+    left: 4,
+    right: 4,
+    height: 116,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -634,12 +669,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   customerCard: {
-    width: 82,
-    minHeight: 120,
+    width: 78,
+    minHeight: 110,
     backgroundColor: 'rgba(255, 253, 249, 0.94)',
     borderRadius: RADIUS.md,
     borderWidth: 2,
-    padding: 4,
+    padding: 3,
     alignItems: 'center',
     justifyContent: 'space-between',
     elevation: 4,
@@ -700,10 +735,10 @@ const styles = StyleSheet.create({
   },
   stationsRow: {
     position: 'absolute',
-    bottom: 6,
-    left: 10,
-    right: 10,
-    height: 138,
+    bottom: 4,
+    left: 8,
+    right: 8,
+    height: 104,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -714,13 +749,13 @@ const styles = StyleSheet.create({
   },
   stationHitbox: {
     width: '100%',
-    minHeight: Math.max(MIN_TOUCH_TARGET_DP, 100),
+    minHeight: Math.max(MIN_TOUCH_TARGET_DP, 84),
     borderRadius: RADIUS.md,
     borderWidth: 2,
     borderColor: 'rgba(255, 248, 231, 0.5)',
     backgroundColor: 'rgba(46, 23, 12, 0.72)',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 4,
     justifyContent: 'space-between',
   },
   stationHitboxSelected: {

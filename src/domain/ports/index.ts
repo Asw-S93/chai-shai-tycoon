@@ -1,4 +1,10 @@
-import { IngredientId, UpgradeId } from '../value-objects';
+import {
+  IapProduct,
+  IapProductId,
+  IapPurchaseReceipt,
+  IngredientId,
+  UpgradeId,
+} from '../value-objects';
 
 /**
  * Deterministic Clock Port
@@ -57,6 +63,7 @@ export interface PlayerSaveSnapshot {
     readonly lowMotionEnabled: boolean;
   };
   readonly processedTransactionIds: readonly string[];
+  readonly ownedEntitlements?: readonly string[];
 }
 
 export interface SessionRecord {
@@ -72,6 +79,17 @@ export interface SessionRecord {
 }
 
 /**
+ * In-App Billing Port (implemented by GooglePlayBillingAdapter / MockBillingAdapter)
+ */
+export interface BillingPort {
+  initialize(): Promise<void>;
+  fetchCatalog(): Promise<readonly IapProduct[]>;
+  requestPurchase(productId: IapProductId): Promise<IapPurchaseReceipt>;
+  restorePurchases(): Promise<readonly IapPurchaseReceipt[]>;
+  acknowledgePurchase(purchaseToken: string): Promise<void>;
+}
+
+/**
  * Persistence Port (implemented by SQLite repository in infrastructure)
  */
 export interface SaveRepositoryPort {
@@ -83,6 +101,13 @@ export interface SaveRepositoryPort {
     upgradeId: UpgradeId;
     newLevel: number;
     newCoinBalance: number;
+  }): Promise<boolean>;
+  recordIapPurchase(params: {
+    transactionId: string;
+    productId: IapProductId;
+    coinsAwarded: number;
+    newCoinBalance: number;
+    entitlementAdded?: string;
   }): Promise<boolean>;
   recordOrderServed(params: {
     orderId: string;

@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import { GameUiSnapshot } from '../../application/dto';
 import { GameEngine } from '../../application/engine';
-import { SaveRepositoryPort } from '../../domain/ports';
+import { BillingPort, SaveRepositoryPort } from '../../domain/ports';
 import {
+  IapProductId,
   IngredientId,
   RecipeId,
   StationId,
   UpgradeId,
 } from '../../domain/value-objects';
+import { createBillingAdapter } from '../../infrastructure/billing';
 import { createDeviceSaveRepository } from '../../infrastructure/persistence/expoSqliteAdapter';
 import {
   ExpoFeedbackAdapter,
@@ -36,22 +38,29 @@ export interface GameStoreState {
   updateSettings: (
     partial: Partial<GameUiSnapshot['settings']>
   ) => void;
+  buyIapProduct: (productId: IapProductId) => Promise<boolean>;
+  restoreIapPurchases: () => Promise<number>;
 }
 
 /**
  * Explicit constructor-based factory that wires domain/application ports to infrastructure adapters
  * and creates a Zustand store bound to throttled UI snapshots.
  */
-export function createGameStore(customSaveRepo?: SaveRepositoryPort) {
+export function createGameStore(
+  customSaveRepo?: SaveRepositoryPort,
+  customBilling?: BillingPort
+) {
   const clock = new SystemClockAdapter();
   const random = new SeededRandomAdapter();
   const saveRepo = customSaveRepo ?? createDeviceSaveRepository();
+  const billing = customBilling ?? createBillingAdapter();
   const feedback = new ExpoFeedbackAdapter();
 
   const engine = new GameEngine({
     clock,
     random,
     saveRepo,
+    billing,
     feedback,
   });
 
@@ -113,6 +122,14 @@ export function createGameStore(customSaveRepo?: SaveRepositoryPort) {
       },
       updateSettings: (partial) => {
         engine.updateSettings(partial);
+      },
+      buyIapProduct: async (productId: IapProductId) => {
+        const res = await engine.buyIapProduct(productId);
+        return res.success;
+      },
+      restoreIapPurchases: async () => {
+        const res = await engine.restoreIapPurchases();
+        return res.restoredCount;
       },
     };
   });

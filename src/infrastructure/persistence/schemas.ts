@@ -35,6 +35,7 @@ export const PlayerSaveSnapshotSchema = z.object({
   upgrades: UpgradesSchema,
   settings: SettingsSchema,
   processedTransactionIds: z.array(z.string()).catch([]),
+  ownedEntitlements: z.array(z.string()).catch([]),
 });
 
 export function createSeededSaveSnapshot(): PlayerSaveSnapshot {
@@ -66,5 +67,6 @@ export function createSeededSaveSnapshot(): PlayerSaveSnapshot {
       lowMotionEnabled: false,
     },
     processedTransactionIds: [],
+    ownedEntitlements: [],
   };
 }

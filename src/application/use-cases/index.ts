@@ -481,3 +481,6 @@ export class RestockIngredientUseCase {
     };
   }
 }
+
+export { PurchaseProductUseCase, RestorePurchasesUseCase } from './IapUseCases';
+

@@ -275,6 +275,10 @@ export class Wallet {
     return this._balance;
   }
 
+  public get processedTransactionIds(): readonly string[] {
+    return Array.from(this._processedTransactionIds);
+  }
+
   public hasProcessed(transactionId: string): boolean {
     return this._processedTransactionIds.has(transactionId);
   }

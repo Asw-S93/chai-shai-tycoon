@@ -127,3 +127,5 @@ export class GameTime {
     return this.elapsedMs / 1000;
   }
 }
+
+export * from './iap';

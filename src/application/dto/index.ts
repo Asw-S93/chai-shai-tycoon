@@ -1,5 +1,6 @@
 import {
   CustomerArchetypeId,
+  IapProduct,
   IngredientId,
   OrderState,
   RecipeId,
@@ -92,4 +93,7 @@ export interface GameUiSnapshot {
     readonly hapticsEnabled: boolean;
     readonly lowMotionEnabled: boolean;
   };
+  readonly iapCatalog: readonly IapProduct[];
+  readonly isIapPurchasing: boolean;
+  readonly ownedEntitlements: readonly string[];
 }

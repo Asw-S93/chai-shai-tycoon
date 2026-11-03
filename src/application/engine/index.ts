@@ -10,6 +10,7 @@ import {
 } from '../../domain/entities';
 import { GameEvent, GameEventListener } from '../../domain/events';
 import {
+  BillingPort,
   ClockPort,
   FeedbackPort,
   PlayerSaveSnapshot,
@@ -18,6 +19,9 @@ import {
 } from '../../domain/ports';
 import { BrewingRules, EconomyRules, QueueRules } from '../../domain/services';
 import {
+  IAP_CATALOG,
+  IapProductId,
+  IapPurchaseResult,
   IngredientId,
   RecipeId,
   StationId,
@@ -34,6 +38,8 @@ import {
 import {
   BuyUpgradeUseCase,
   CreateOrderUseCase,
+  PurchaseProductUseCase,
+  RestorePurchasesUseCase,
   RestockIngredientUseCase,
   ServeOrderUseCase,
   StartBrewUseCase,
@@ -57,6 +63,12 @@ export class GameEngine {
   private readonly saveRepo: SaveRepositoryPort;
   private readonly feedback: FeedbackPort;
   private readonly config: SessionConfig;
+
+  private readonly billing?: BillingPort;
+  private readonly purchaseProductUseCase?: PurchaseProductUseCase;
+  private readonly restorePurchasesUseCase?: RestorePurchasesUseCase;
+  private ownedEntitlements: string[] = [];
+  private isIapPurchasing: boolean = false;
 
   private wallet: Wallet;
   private inventory: Inventory;
@@ -111,13 +123,27 @@ export class GameEngine {
     random: RandomPort;
     saveRepo: SaveRepositoryPort;
     feedback: FeedbackPort;
+    billing?: BillingPort;
     config?: Partial<SessionConfig>;
   }) {
     this.clock = params.clock;
     this.random = params.random;
     this.saveRepo = params.saveRepo;
     this.feedback = params.feedback;
+    this.billing = params.billing;
     this.config = { ...DEFAULT_SESSION_CONFIG, ...params.config };
+
+    if (this.billing) {
+      this.purchaseProductUseCase = new PurchaseProductUseCase(
+        this.billing,
+        this.saveRepo,
+        this.feedback
+      );
+      this.restorePurchasesUseCase = new RestorePurchasesUseCase(
+        this.billing,
+        this.saveRepo
+      );
+    }
 
     this.wallet = new Wallet(100);
     this.upgrades = new UpgradeState();
@@ -130,6 +156,9 @@ export class GameEngine {
 
   public async initializeFromStorage(): Promise<GameUiSnapshot> {
     await this.saveRepo.initialize();
+    if (this.billing) {
+      await this.billing.initialize();
+    }
     const saved = await this.saveRepo.loadSave();
     this.hydrateFromSnapshot(saved);
     this.publishSnapshotNow();
@@ -143,6 +172,7 @@ export class GameEngine {
     this.lifetimeOrdersServed = saved.lifetimeOrdersServed;
     this.tutorialCompleted = saved.tutorialCompleted;
     this.upgrades = new UpgradeState(saved.upgrades);
+    this.ownedEntitlements = [...(saved.ownedEntitlements ?? [])];
 
     const maxCap = EconomyRules.calculateStorageCapacity(
       this.config.baseStorageCapacity,
@@ -183,7 +213,8 @@ export class GameEngine {
       inventory: this.inventory.getSnapshot(),
       upgrades: this.upgrades.getSnapshot(),
       settings: { ...this.settings },
-      processedTransactionIds: [],
+      processedTransactionIds: [...this.wallet.processedTransactionIds],
+      ownedEntitlements: [...this.ownedEntitlements],
     };
   }
 
@@ -741,6 +772,66 @@ export class GameEngine {
     this.publishSnapshotNow();
   }
 
+  public async buyIapProduct(productId: IapProductId): Promise<IapPurchaseResult> {
+    if (!this.purchaseProductUseCase) {
+      return {
+        success: false,
+        productId,
+        coinsAwarded: 0,
+        error: 'Billing not configured',
+      };
+    }
+
+    this.isIapPurchasing = true;
+    this.publishSnapshotNow();
+
+    try {
+      const result = await this.purchaseProductUseCase.execute({
+        productId,
+        currentSnapshot: this.exportSaveSnapshot(),
+        onSuccess: (newCoins, updatedSnapshot) => {
+          this.hydrateFromSnapshot(updatedSnapshot);
+          this.pushFeedback(
+            `Purchased! +${result?.coinsAwarded ?? 0} coins`,
+            'info'
+          );
+        },
+      });
+
+      if (!result.success && result.error) {
+        this.pushFeedback(result.error, 'error');
+      }
+
+      return result;
+    } finally {
+      this.isIapPurchasing = false;
+      this.publishSnapshotNow();
+    }
+  }
+
+  public async restoreIapPurchases(): Promise<{ restoredCount: number }> {
+    if (!this.restorePurchasesUseCase) {
+      return { restoredCount: 0 };
+    }
+
+    this.isIapPurchasing = true;
+    this.publishSnapshotNow();
+
+    try {
+      const result = await this.restorePurchasesUseCase.execute({
+        currentSnapshot: this.exportSaveSnapshot(),
+        onRestored: (updatedSnapshot) => {
+          this.hydrateFromSnapshot(updatedSnapshot);
+          this.pushFeedback('Purchases restored successfully!', 'info');
+        },
+      });
+      return result;
+    } finally {
+      this.isIapPurchasing = false;
+      this.publishSnapshotNow();
+    }
+  }
+
   public completeSession(): SessionSummaryDTO {
     this.sessionActive = false;
     this.isPaused = false;
@@ -933,6 +1024,9 @@ export class GameEngine {
       feedbackItems: [...this.feedbackItems],
       lastSessionSummary: this.lastSessionSummary,
       settings: { ...this.settings },
+      iapCatalog: IAP_CATALOG,
+      isIapPurchasing: this.isIapPurchasing,
+      ownedEntitlements: [...this.ownedEntitlements],
     };
   }
 }

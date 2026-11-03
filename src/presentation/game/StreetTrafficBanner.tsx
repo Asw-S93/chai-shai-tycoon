@@ -30,11 +30,10 @@ const CHUG_TILT_STEPS: readonly number[] = [-1.5, 0, 1.5, 0];
 const CHUG_BOUNCE_STEPS: readonly number[] = [0, -2, 0, -1];
 
 /**
- * Pure deterministic stop-motion pose calculator for passing street vehicles.
- * Quantizes time into discrete 140ms steps (~7 FPS) so buses, auto-rickshaws,
- * scooters, and cycle rickshaws chug across the street in authentic claymation
- * stop-motion style, accelerating during Rush Hour and parking cleanly when
- * `lowMotionEnabled` is enabled.
+ * Pure deterministic linear pose calculator for passing street vehicles.
+ * Calculates smooth continuous linear translation (x(t) = x0 + v*t) for
+ * buses, auto-rickshaws, and scooters across the street, accelerating during
+ * Rush Hour and parking cleanly when `lowMotionEnabled` is enabled.
  */
 export function computeStreetVehiclePose(params: {
   readonly track: StreetVehicleTrackConfig;
@@ -55,18 +54,12 @@ export function computeStreetVehiclePose(params: {
     };
   }
 
-  // Quantize elapsed time into discrete 140ms stop-motion ticks (~7 FPS)
-  const stepIntervalMs = isRushHour ? 100 : 140;
-  const speedMultiplier = isRushHour ? 1.55 : 1.0;
-  const quantizedMs =
-    Math.floor(Math.max(0, elapsedMs) / stepIntervalMs) *
-    stepIntervalMs *
-    speedMultiplier;
-  const stepIndex = Math.floor(Math.max(0, elapsedMs) / stepIntervalMs);
-
+  // Linear, continuous motion driven directly by elapsed time
+  const speedMultiplier = isRushHour ? 1.5 : 1.0;
+  const effectiveMs = Math.max(0, elapsedMs) * speedMultiplier;
   const totalSpan = bannerWidth + track.width * 2.4;
   const cycleProgress =
-    ((quantizedMs + track.phaseOffsetMs) % track.cycleDurationMs) /
+    ((effectiveMs + track.phaseOffsetMs) % track.cycleDurationMs) /
     track.cycleDurationMs;
 
   const rawX =
@@ -74,6 +67,8 @@ export function computeStreetVehiclePose(params: {
       ? -track.width * 1.2 + cycleProgress * totalSpan
       : bannerWidth + track.width * 0.2 - cycleProgress * totalSpan;
 
+  // Subtle stop-motion engine rumble while moving linearly
+  const stepIndex = Math.floor(Math.max(0, elapsedMs) / 140);
   const rotateDeg = CHUG_TILT_STEPS[stepIndex % CHUG_TILT_STEPS.length] ?? 0;
   const translateY = CHUG_BOUNCE_STEPS[stepIndex % CHUG_BOUNCE_STEPS.length] ?? 0;
 
@@ -90,31 +85,21 @@ export const STREET_VEHICLE_TRACKS: readonly StreetVehicleTrackConfig[] = [
     id: 'city_bus',
     width: 96,
     height: 64,
-    laneBottomPx: 6,
+    laneBottomPx: 8,
     direction: 'ltr',
     cycleDurationMs: 14_000,
     phaseOffsetMs: 1_500,
     parkedRatio: 0.08,
   },
   {
-    id: 'cycle_rickshaw',
-    width: 68,
-    height: 54,
-    laneBottomPx: 7,
-    direction: 'rtl',
-    cycleDurationMs: 16_000,
-    phaseOffsetMs: 7_200,
-    parkedRatio: 0.68,
-  },
-  {
     id: 'autorickshaw',
     width: 74,
     height: 54,
-    laneBottomPx: 1,
+    laneBottomPx: 2,
     direction: 'ltr',
     cycleDurationMs: 9_500,
     phaseOffsetMs: 4_800,
-    parkedRatio: 0.4,
+    parkedRatio: 0.42,
   },
   {
     id: 'scooter',
@@ -122,8 +107,8 @@ export const STREET_VEHICLE_TRACKS: readonly StreetVehicleTrackConfig[] = [
     height: 48,
     laneBottomPx: 0,
     direction: 'rtl',
-    cycleDurationMs: 7_800,
-    phaseOffsetMs: 2_100,
+    cycleDurationMs: 7_500,
+    phaseOffsetMs: 1_800,
     parkedRatio: 0.82,
   },
 ] as const;

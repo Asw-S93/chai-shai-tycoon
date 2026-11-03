@@ -6,6 +6,7 @@ import {
 import {
   ALL_INGREDIENT_IDS,
   ALL_UPGRADE_IDS,
+  IapProductId,
   IngredientId,
   UpgradeId,
 } from '../../domain/value-objects';
@@ -262,6 +263,24 @@ export class SqliteSaveRepository implements SaveRepositoryPort {
         `INSERT INTO upgrade_levels (upgrade_id, level) VALUES (?, ?)
          ON CONFLICT(upgrade_id) DO UPDATE SET level = excluded.level`,
         [params.upgradeId, params.newLevel]
+      );
+    });
+    return true;
+  }
+
+  public async recordIapPurchase(params: {
+    transactionId: string;
+    productId: IapProductId;
+    coinsAwarded: number;
+    newCoinBalance: number;
+    entitlementAdded?: string;
+  }): Promise<boolean> {
+    const db = await this.ensureDb();
+    const nowIso = new Date().toISOString();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        'UPDATE player_progress SET coins = ?, updated_at = ? WHERE id = 1',
+        [Math.max(0, Math.floor(params.newCoinBalance)), nowIso]
       );
     });
     return true;

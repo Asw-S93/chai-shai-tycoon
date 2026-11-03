@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -9,23 +10,35 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { UpgradeCategory } from '../../domain/value-objects';
+import { IapProductId, UpgradeCategory } from '../../domain/value-objects';
 import { UPGRADE_VISUAL_MANIFEST } from '../../infrastructure/assets';
 import { useGameStore } from '../state/useGameStore';
 import { COLORS, MIN_TOUCH_TARGET_DP, RADIUS, SPACING } from '../theme';
 
-const TABS: { key: UpgradeCategory | 'all'; label: string }[] = [
-  { key: 'all', label: 'All (6)' },
+type ShopTabKey = UpgradeCategory | 'all' | 'coins';
+
+const TABS: { key: ShopTabKey; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'equipment', label: 'Equipment' },
   { key: 'staff', label: 'Staff' },
   { key: 'decor', label: 'Decor' },
+  { key: 'coins', label: 'Coins (IAP)' },
 ];
+
+const IAP_GLYPHS: Record<IapProductId, string> = {
+  cs_coins_pouch: '💰',
+  cs_coins_pot: '🏺',
+  cs_coins_chest: '👑',
+  cs_bundle_starter: '⭐',
+};
 
 export const UpgradeShopScreen: React.FC = () => {
   const router = useRouter();
   const snapshot = useGameStore((s) => s.snapshot);
   const buyUpgrade = useGameStore((s) => s.buyUpgrade);
-  const [selectedTab, setSelectedTab] = useState<UpgradeCategory | 'all'>('all');
+  const buyIapProduct = useGameStore((s) => s.buyIapProduct);
+  const restoreIapPurchases = useGameStore((s) => s.restoreIapPurchases);
+  const [selectedTab, setSelectedTab] = useState<ShopTabKey>('all');
 
   const filteredUpgrades = snapshot.upgrades.filter(
     (u) => selectedTab === 'all' || u.category === selectedTab
@@ -79,74 +92,146 @@ export const UpgradeShopScreen: React.FC = () => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       >
-        {filteredUpgrades.map((upg) => {
-          const propIcon = UPGRADE_VISUAL_MANIFEST[upg.id];
-          return (
-            <View key={upg.id} style={styles.upgradeCard}>
-              {/* Illustrated Upgrade Prop / Staff Sprite */}
-              <View style={styles.propIconFrame}>
-                <Image
-                  source={propIcon}
-                  style={styles.propIconImage}
-                  resizeMode="contain"
-                />
-              </View>
+        {selectedTab === 'coins' ? (
+          <>
+            {snapshot.iapCatalog.map((product) => {
+              const isOwned =
+                product.type === 'non_consumable' &&
+                snapshot.ownedEntitlements.includes(product.id);
+              const glyph = product.glyph ?? IAP_GLYPHS[product.id] ?? '🪙';
 
-              <View style={styles.cardInfo}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.upgradeName} numberOfLines={1}>
-                    {upg.name}
-                  </Text>
-                  <Text style={styles.levelBadge}>
-                    Lv. {upg.currentLevel}/{upg.maxLevel}
-                  </Text>
+              return (
+                <View key={product.id} style={styles.upgradeCard}>
+                  <View style={styles.propIconFrame}>
+                    <Text style={{ fontSize: 30 }}>{glyph}</Text>
+                  </View>
+
+                  <View style={styles.cardInfo}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.upgradeName} numberOfLines={1}>
+                        {product.title}
+                      </Text>
+                      <Text style={styles.levelBadge}>
+                        +{product.coinsReward} Coins
+                      </Text>
+                    </View>
+                    <Text style={styles.upgradeDesc}>{product.description}</Text>
+                  </View>
+
+                  <Pressable
+                    testID={`buy-iap-${product.id}`}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      disabled: isOwned || snapshot.isIapPurchasing,
+                    }}
+                    accessibilityLabel={
+                      isOwned
+                        ? `${product.title} already owned`
+                        : `Buy ${product.title} for ${product.priceFormatted}`
+                    }
+                    onPress={() => buyIapProduct(product.id)}
+                    style={[
+                      styles.buyButton,
+                      isOwned && styles.buyButtonMaxed,
+                      snapshot.isIapPurchasing && styles.buyButtonDisabled,
+                    ]}
+                  >
+                    {isOwned ? (
+                      <Text style={styles.buyButtonText}>OWNED ✓</Text>
+                    ) : snapshot.isIapPurchasing ? (
+                      <ActivityIndicator size="small" color={COLORS.cream} />
+                    ) : (
+                      <>
+                        <Text style={styles.buyButtonText}>BUY</Text>
+                        <Text style={styles.buyCostText}>{product.priceFormatted}</Text>
+                      </>
+                    )}
+                  </Pressable>
                 </View>
-                <Text style={styles.upgradeDesc}>{upg.description}</Text>
+              );
+            })}
 
-                {/* Level Progress Dots */}
-                <View style={styles.dotsRow}>
-                  {Array.from({ length: upg.maxLevel }).map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.levelDot,
-                        i < upg.currentLevel && styles.levelDotFilled,
-                      ]}
-                    />
-                  ))}
+            <Pressable
+              testID="iap-restore-btn"
+              accessibilityRole="button"
+              accessibilityLabel="Restore Purchases"
+              disabled={snapshot.isIapPurchasing}
+              onPress={() => restoreIapPurchases()}
+              style={styles.restoreButton}
+            >
+              <Text style={styles.restoreButtonText}>🔄 Restore Purchases</Text>
+            </Pressable>
+          </>
+        ) : (
+          filteredUpgrades.map((upg) => {
+            const propIcon = UPGRADE_VISUAL_MANIFEST[upg.id];
+            return (
+              <View key={upg.id} style={styles.upgradeCard}>
+                {/* Illustrated Upgrade Prop / Staff Sprite */}
+                <View style={styles.propIconFrame}>
+                  <Image
+                    source={propIcon}
+                    style={styles.propIconImage}
+                    resizeMode="contain"
+                  />
                 </View>
-              </View>
 
-              <Pressable
-                testID={`buy-upgrade-${upg.id}`}
-                accessibilityRole="button"
-                accessibilityState={{
-                  disabled: upg.isMaxed || !upg.canAfford,
-                }}
-                accessibilityLabel={
-                  upg.isMaxed
-                    ? `${upg.name} max level reached`
-                    : `Buy ${upg.name} for ${upg.nextCost} coins`
-                }
-                onPress={() => buyUpgrade(upg.id)}
-                style={[
-                  styles.buyButton,
-                  upg.isMaxed && styles.buyButtonMaxed,
-                  !upg.isMaxed && !upg.canAfford && styles.buyButtonDisabled,
-                ]}
-              >
-                {upg.isMaxed ? (
-                  <Text style={styles.buyButtonText}>MAXED ✓</Text>
-                ) : (
-                  <>
-                    <Text style={styles.buyButtonText}>Upgrade</Text>
-                    <Text style={styles.buyCostText}>🪙 {upg.nextCost}</Text>
-                  </>
-                )}
-              </Pressable>
-            </View>
-          );
-        })}
+                <View style={styles.cardInfo}>
+                  <View style={styles.titleRow}>
+                    <Text style={styles.upgradeName} numberOfLines={1}>
+                      {upg.name}
+                    </Text>
+                    <Text style={styles.levelBadge}>
+                      Lv. {upg.currentLevel}/{upg.maxLevel}
+                    </Text>
+                  </View>
+                  <Text style={styles.upgradeDesc}>{upg.description}</Text>
+
+                  {/* Level Progress Dots */}
+                  <View style={styles.dotsRow}>
+                    {Array.from({ length: upg.maxLevel }).map((_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.levelDot,
+                          i < upg.currentLevel && styles.levelDotFilled,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                <Pressable
+                  testID={`buy-upgrade-${upg.id}`}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    disabled: upg.isMaxed || !upg.canAfford,
+                  }}
+                  accessibilityLabel={
+                    upg.isMaxed
+                      ? `${upg.name} max level reached`
+                      : `Buy ${upg.name} for ${upg.nextCost} coins`
+                  }
+                  onPress={() => buyUpgrade(upg.id)}
+                  style={[
+                    styles.buyButton,
+                    upg.isMaxed && styles.buyButtonMaxed,
+                    !upg.isMaxed && !upg.canAfford && styles.buyButtonDisabled,
+                  ]}
+                >
+                  {upg.isMaxed ? (
+                    <Text style={styles.buyButtonText}>MAXED ✓</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.buyButtonText}>Upgrade</Text>
+                      <Text style={styles.buyCostText}>🪙 {upg.nextCost}</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -313,5 +398,22 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 13,
     marginTop: 2,
+  },
+  restoreButton: {
+    minHeight: MIN_TOUCH_TARGET_DP,
+    backgroundColor: COLORS.creamWarm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.teaBrownLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  restoreButtonText: {
+    color: COLORS.teaBrown,
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

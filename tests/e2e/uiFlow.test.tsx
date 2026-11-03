@@ -176,4 +176,23 @@ describe('UI / E2E Smoke Flows (Section 10)', () => {
     await fireEvent(settings.getByTestId('toggle-low-motion'), 'valueChange', true);
     expect(useGameStore.getState().snapshot.settings.lowMotionEnabled).toBe(true);
   });
+
+  test('Shop -> Coins (IAP) tab renders coin packs and enables purchase', async () => {
+    const shop = await render(<UpgradeShopScreen />);
+    
+    // Switch to Coins (IAP) tab
+    await fireEvent.press(shop.getByTestId('shop-tab-coins'));
+
+    // Check that coin packs are rendered
+    const initialCoins = useGameStore.getState().snapshot.coins;
+    const pouchBtn = shop.getByTestId('buy-iap-cs_coins_pouch');
+    expect(pouchBtn).toBeTruthy();
+
+    // Buy Pouch of Coins (+150 coins)
+    await act(async () => {
+      await fireEvent.press(pouchBtn);
+    });
+
+    expect(useGameStore.getState().snapshot.coins).toBe(initialCoins + 150);
+  });
 });

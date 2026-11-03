@@ -69,6 +69,7 @@ function createMemorySaveRepo(initial?: PlayerSaveSnapshot): SaveRepositoryPort 
       state = s;
     }),
     recordUpgradePurchase: jest.fn().mockResolvedValue(true),
+    recordIapPurchase: jest.fn().mockResolvedValue(true),
     recordOrderServed: jest.fn().mockResolvedValue(true),
     recordSessionCompleted: jest.fn().mockResolvedValue(undefined),
     updateSettings: jest.fn().mockResolvedValue(undefined),
