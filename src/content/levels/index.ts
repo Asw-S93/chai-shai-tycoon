@@ -32,3 +32,6 @@ export const DEFAULT_SESSION_CONFIG: SessionConfig = {
   tutorialFreeOrdersCount: 3, // Tutorial provides free inventory for 3 orders
   baseStorageCapacity: 15,
 };
+
+export * from '../themes';
+

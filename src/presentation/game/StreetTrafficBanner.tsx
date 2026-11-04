@@ -1,12 +1,20 @@
-import React from 'react';
+import { Canvas, Group, Path, Rect } from '@shopify/react-native-skia';
+import React, { useMemo } from 'react';
 import {
   Image,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { CITY_THEMES, LevelThemeConfig } from '../../content/themes';
 import { SPRITE_ASSETS, StreetVehicleId } from '../../infrastructure/assets';
 import { COLORS, RADIUS } from '../theme';
+import { MonumentSilhouette } from './MonumentSilhouettes';
+import {
+  computeDepthScale,
+  computePerspectiveRoadGeometry,
+  computeSkyPropPose,
+} from './perspectiveMath';
 
 export interface StreetVehicleTrackConfig {
   readonly id: StreetVehicleId;
@@ -119,14 +127,14 @@ export interface StreetTrafficBannerProps {
   readonly elapsedMs: number;
   readonly isRushHour: boolean;
   readonly lowMotionEnabled: boolean;
+  readonly theme?: LevelThemeConfig;
   readonly testID?: string;
 }
 
 /**
  * Dynamic Indian Street-Art & Moving Traffic Diorama rendered above the Chai Stall.
- * Shows hand-painted peacock/floral street murals, overhanging banyan/gulmohar trees
- * with fairy lights, and two lanes of stop-motion buses, auto-rickshaws, scooters,
- * and cycle rickshaws passing by.
+ * Implements a One-Point Perspective Stage with a distant scenic landmark/monument
+ * above the horizon line and depth-scaled animated props/vehicles below the horizon line.
  */
 export const StreetTrafficBanner: React.FC<StreetTrafficBannerProps> = ({
   width,
@@ -134,15 +142,104 @@ export const StreetTrafficBanner: React.FC<StreetTrafficBannerProps> = ({
   elapsedMs,
   isRushHour,
   lowMotionEnabled,
+  theme = CITY_THEMES.delhi,
   testID = 'street-traffic-banner',
 }) => {
+  const horizonY = Math.round(height * (theme.horizonRatio ?? 0.38));
+  const centerX = Math.round(width / 2);
+
+  const roadGeom = useMemo(() => {
+    return computePerspectiveRoadGeometry(width, height, horizonY);
+  }, [width, height, horizonY]);
+
+  // Compute animated sky props (circling pigeons / seagulls / kites)
+  const skyProps = [0, 1].map((idx) =>
+    computeSkyPropPose({
+      index: idx,
+      elapsedMs,
+      width,
+      horizonY,
+      propType: theme.birdType,
+      lowMotionEnabled,
+    }),
+  );
+
+  const skyColor = isRushHour ? theme.sky.rushSkyBottom : theme.sky.skyBottom;
+
   return (
     <View
       testID={testID}
       style={[styles.container, { width, height }]}
       pointerEvents="none"
     >
-      {/* Street Art Mural Wall, Trees, Fairy Lights & Curb Road */}
+      {/* Layer 0: One-Point Perspective Canvas (Sky, Landmark Silhouette, Converging Road) */}
+      <Canvas style={StyleSheet.absoluteFill}>
+        {/* Sky Section Above Horizon Line */}
+        <Rect x={0} y={0} width={width} height={horizonY} color={skyColor} />
+
+        {/* Distant Monument / Landmark Silhouette Above Horizon Line */}
+        <MonumentSilhouette
+          monument={theme.monument}
+          centerX={centerX}
+          horizonY={horizonY}
+          isRushHour={isRushHour}
+        />
+
+        {/* Animated Circling Birds / Flying Kites Above Horizon */}
+        {skyProps.map((sp, idx) => (
+          <Group
+            key={`sky_prop_${idx}`}
+            transform={[
+              { translateX: sp.x },
+              { translateY: sp.y },
+              { rotate: (sp.rotateDeg * Math.PI) / 180 },
+              { scale: sp.scale },
+            ]}
+            opacity={sp.opacity}
+          >
+            {theme.birdType === 'kite' ? (
+              // Diamond kite
+              <Path
+                path="M 0 -8 L 6 0 L 0 8 L -6 0 Z"
+                color={idx === 0 ? '#E74C3C' : '#F39C12'}
+              />
+            ) : (
+              // Soaring bird wings
+              <Path
+                path="M -7 -2 Q 0 -6 7 -2 Q 0 0 -7 -2 Z"
+                color={isRushHour ? '#4A150E' : '#334455'}
+              />
+            )}
+          </Group>
+        ))}
+
+        {/* Perspective Road Below Horizon Line */}
+        <Path path={roadGeom.roadPolygonPath} color={theme.roadColor} />
+
+        {/* Left and Right Perspective Curb Lines */}
+        <Path
+          path={`M ${roadGeom.leftCurbStart.x} ${roadGeom.leftCurbStart.y} L ${roadGeom.leftCurbEnd.x} ${roadGeom.leftCurbEnd.y}`}
+          color={theme.curbColor}
+          style="stroke"
+          strokeWidth={3}
+        />
+        <Path
+          path={`M ${roadGeom.rightCurbStart.x} ${roadGeom.rightCurbStart.y} L ${roadGeom.rightCurbEnd.x} ${roadGeom.rightCurbEnd.y}`}
+          color={theme.curbColor}
+          style="stroke"
+          strokeWidth={3}
+        />
+
+        {/* Vanishing Point Dashed Centerline */}
+        <Path
+          path={`M ${centerX} ${horizonY + 4} L ${centerX} ${height}`}
+          color={theme.roadLineColor}
+          style="stroke"
+          strokeWidth={2}
+        />
+      </Canvas>
+
+      {/* Layer 1: Hand-Painted Street Art Mural Overlay with Opacity */}
       <Image
         source={SPRITE_ASSETS.streetBackdrop}
         style={[styles.backdrop, { width, height }]}
@@ -152,7 +249,7 @@ export const StreetTrafficBanner: React.FC<StreetTrafficBannerProps> = ({
       {/* Rush Hour Sunset Glaze */}
       {isRushHour && <View style={styles.rushSunsetGlaze} />}
 
-      {/* Moving Stop-Motion Street Vehicles (Bus, Cycle Rickshaw, Auto-Rickshaw, Scooter) */}
+      {/* Layer 2: Moving Stop-Motion Street Vehicles Below Horizon Line */}
       {STREET_VEHICLE_TRACKS.map((track) => {
         const pose = computeStreetVehiclePose({
           track,
@@ -161,6 +258,10 @@ export const StreetTrafficBanner: React.FC<StreetTrafficBannerProps> = ({
           isRushHour,
           lowMotionEnabled,
         });
+
+        // Depth scale based on vehicle lane distance from horizon
+        const vehicleY = height - track.laneBottomPx;
+        const depthScale = computeDepthScale(vehicleY, horizonY, height, 0.70, 1.0);
 
         return (
           <View
@@ -176,7 +277,8 @@ export const StreetTrafficBanner: React.FC<StreetTrafficBannerProps> = ({
                   { translateX: pose.translateX },
                   { translateY: pose.translateY },
                   { rotate: `${pose.rotateDeg}deg` },
-                  { scaleX: pose.scaleX },
+                  { scaleX: pose.scaleX * depthScale },
+                  { scaleY: depthScale },
                 ],
               },
             ]}
@@ -190,10 +292,12 @@ export const StreetTrafficBanner: React.FC<StreetTrafficBannerProps> = ({
         );
       })}
 
-      {/* Subtle Location / Rush Traffic Pill */}
+      {/* Level City & Monument Badge */}
       <View style={styles.streetBadge}>
         <Text style={styles.streetBadgeText}>
-          {isRushHour ? '🛺 Bazaar Rush Traffic • Honk! 📯' : '🎨 Chowk Street Art & Bazaar Road'}
+          {isRushHour
+            ? `🛺 ${theme.cityName} • Rush Traffic! 📯`
+            : `🏛️ ${theme.cityName} • ${theme.monument.name}`}
         </Text>
       </View>
     </View>

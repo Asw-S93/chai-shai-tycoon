@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LEVEL_THRESHOLDS } from '../../content/levels';
 import { INGREDIENT_METADATA, RECIPES_CATALOG } from '../../content/recipes';
 import { ALL_INGREDIENT_IDS, IngredientId } from '../../domain/value-objects';
 import {
@@ -92,6 +93,14 @@ export const GameplayScreen: React.FC = () => {
   const secs = remainingTotalSec % 60;
   const formattedClock = `${mins}:${secs.toString().padStart(2, '0')}`;
 
+  const curMinXp =
+    LEVEL_THRESHOLDS.find((t) => t.level === snapshot.level)?.minXp ?? 0;
+  const nextMinXp = snapshot.nextLevelXp ?? (curMinXp + 100);
+  const xpRatio = Math.max(
+    0,
+    Math.min(1, (snapshot.xp - curMinXp) / Math.max(1, nextMinXp - curMinXp)),
+  );
+
   const decorUpgrade = snapshot.upgrades.find((u) => u.id === 'better_tips');
   const helperUpgrade = snapshot.upgrades.find((u) => u.id === 'additional_patience');
 
@@ -106,9 +115,19 @@ export const GameplayScreen: React.FC = () => {
             </Text>
           </View>
           <View style={styles.metricBadge}>
-            <Text style={styles.metricText}>
-              ⭐ Lv.{snapshot.level} ({snapshot.xp} XP)
-            </Text>
+            <View style={styles.levelRow}>
+              <Text style={styles.metricText}>
+                ⭐ Lv.{snapshot.level} ({snapshot.xp} XP)
+              </Text>
+              <View style={styles.xpBarTrack}>
+                <View
+                  style={[
+                    styles.xpBarFill,
+                    { width: `${Math.round(xpRatio * 100)}%` },
+                  ]}
+                />
+              </View>
+            </View>
           </View>
           <View
             style={[
@@ -160,6 +179,8 @@ export const GameplayScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={styles.mainContent}
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
       >
         {/* Interactive Skia & Stop-Motion Chai Stall Scene */}
         <ChaiStallScene
@@ -170,14 +191,17 @@ export const GameplayScreen: React.FC = () => {
           lowMotionEnabled={snapshot.settings.lowMotionEnabled}
           decorLevel={decorUpgrade?.currentLevel ?? 0}
           helperLevel={helperUpgrade?.currentLevel ?? 0}
+          playerLevel={snapshot.level}
           sessionElapsedMs={snapshot.sessionElapsedMs}
           onTapCustomerOrder={(orderId) => tapCustomerOrder(orderId)}
           onTapStation={(stationId) => tapStation(stationId)}
           onDiscardReadyCup={(stationId) => discardReadyCup(stationId)}
         />
 
-        {/* Ingredient Pantry & Quick Restock Strip */}
-        <View style={styles.pantryCard}>
+        {/* Ergonomic Action Deck: Pantry Strip & Recipe Selector in Thumb Zone */}
+        <View style={styles.actionDeck}>
+          {/* Ingredient Pantry & Quick Restock Strip */}
+          <View style={styles.pantryCard}>
           <View style={styles.pantryHeaderRow}>
             <Text style={styles.sectionTitle}>
               Pantry Stock (Max {snapshot.maxStorageCapacity})
@@ -297,7 +321,8 @@ export const GameplayScreen: React.FC = () => {
             })}
           </View>
         </View>
-      </ScrollView>
+      </View>
+    </ScrollView>
 
       {/* First-Launch Guided Tutorial Overlay */}
       <TutorialOverlay
@@ -382,6 +407,22 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: RADIUS.sm,
   },
+  levelRow: {
+    alignItems: 'center',
+  },
+  xpBarTrack: {
+    width: 68,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  xpBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.gold,
+    borderRadius: 2,
+  },
   rushClockBadge: {
     backgroundColor: COLORS.terracotta,
   },
@@ -445,6 +486,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingBottom: SPACING.lg,
     gap: SPACING.sm,
+  },
+  actionDeck: {
+    gap: SPACING.xs,
   },
   pantryCard: {
     backgroundColor: COLORS.creamWarm,

@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import { OrderViewModel, StationViewModel } from '../../application/dto';
+import { getLevelTheme } from '../../content/levels';
 import { StationId } from '../../domain/value-objects';
 import {
   CUSTOMER_VISUAL_MANIFEST,
@@ -36,6 +37,7 @@ interface ChaiStallSceneProps {
   lowMotionEnabled: boolean;
   decorLevel: number;
   helperLevel: number;
+  playerLevel?: number;
   sessionElapsedMs: number;
   onTapCustomerOrder: (orderId: string) => void;
   onTapStation: (stationId: StationId) => void;
@@ -60,6 +62,7 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
   lowMotionEnabled,
   decorLevel,
   helperLevel,
+  playerLevel = 1,
   sessionElapsedMs,
   onTapCustomerOrder,
   onTapStation,
@@ -67,6 +70,7 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
 }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const canvasWidth = Math.max(320, Math.min(windowWidth, 600));
+  const theme = getLevelTheme(playerLevel);
 
   // The background section (street diorama + stall scene) covers 40% of the screen height
   const totalBackgroundHeight = Math.max(
@@ -119,6 +123,7 @@ export const ChaiStallScene: React.FC<ChaiStallSceneProps> = ({
         elapsedMs={sessionElapsedMs}
         isRushHour={isRushHour}
         lowMotionEnabled={lowMotionEnabled}
+        theme={theme}
       />
 
       {/* Lower Section: Interactive Chai Stall Scene */}
